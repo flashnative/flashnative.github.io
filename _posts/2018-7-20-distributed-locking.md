@@ -84,6 +84,30 @@ try {
 
 ![unsafe-write](https://note.youdao.com/yws/api/personal/file/WEBc17cdc6c6a7269246de1839e5d007686?method=download&shareKey=ea2523cd6fa61163362d2a178998a0d8)
 
+即使你认为 `GC` 这种事情只会发生在某些编程语言上,上述描述的场景也可能很难逃避.比如当第一个客户端的请求发出后,并没有直接到达存储端,而是在网络栈上迷失,这有可能花费很长时间才会最终送达,这个时间并不能保证比锁有效期短.`GitHub` 就曾经发生过这样一例事件<sup>7</sup>.
+
+即使你认为 `GC` 这种事情只会发生在某些编程语言上,上述描述的场景也可能很难逃避.比如当第一个客户端的请求发出后,并没有直接到达存储端,而是在网络栈上迷失,这有可能花费很长时间才会最终送达,这个时间并不能保证比锁有效期短.`GitHub` 就曾经发生过这样一例事件<sup>7</sup>.
+
+解决这个问题的方式是,使用 `fencing token` 机制,如下图描述:
+
+![fencing token](https://note.youdao.com/yws/api/personal/file/WEB29be0d0226c2970df7a7d8f27579f2cc?method=download&shareKey=52c089aa7284ead6e2794f7480a33a4b)
+
+当每个客户端申请锁的时候,都会产生一个 `token`,并且该 `token` 保证是严格递增的.当请求因为乱序到达存储端时,存储端根据在本地记录的已经处理过的最大 `token`,拒绝已经过期的请求.看起来很完美,但是还是有一个问题,假设上图中的两个客户端的数据包都发生了网络迷失,但是依然是按顺序到达的,即 `token = 33` 的请求先到,此时两个请求实际上都会被处理.考虑到这样一个处理序列:
+
+```
+t1: client1 got token = 33 and paused and lease expired
+t2: client2 got token = 34 and read the data
+t3: client2 do something with read-modify-write
+t4: client1 resumed from paused and sent its write to the storage and processed
+t5: client2 sent its write to storage and overwrite the previous data
+```
+
+我们可以看到这里发生了一次 `Lost Update`,即使 `client2` 在合法的锁保护下,依然产生了丢失更新,这是有些系统无法接受的.我曾经和 `martin` 讨论了下这个问题,他认为应该使用 `causality` 来解决并发写的冲突.我对这个问题的解决方法是,在申请 `token` 的时候让实际资源处理的系统(比如我们这里的 `FileServer`)也参与进来,将这个 `token` 传递给 `FileServer` 之后再返回锁操作.
+
+至此我们得到了一些结论:
+- 由于 `asynchronuse system model` (无法预测的时钟动作,无法预测的网络延迟,无法预测的进程挂起)在分布式场景下不可避免,必须引入 `fencing token`,由最终的服务端根据 `fencing token` 进行裁决.但是 `fencing token` 并不是完美的,可能产生丢失更新.而且对于 `fencing token` 的处理需要在服务端实现 `CAS`,并不是所有系统都支持该操作,这对系统选型有一定的指导意义.
+- 更为关键的问题是,似乎不能依赖一个外部的锁来做某个资源的互斥访问?
+
 #### Reference
 - [1] [how to do distributed locking](https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html)
 - [2] [distlock](https://redis.io/topics/distlock)
@@ -91,3 +115,4 @@ try {
 - [4] [is redlock safe?](http://antirez.com/news/101)
 - [5] [The Chubby lock service for loosely-coupled distributed systems](https://static.googleusercontent.com/media/research.google.com/zh-CN//archive/chubby-osdi06.pdf)
 - [6] [DDIA](https://www.amazon.com/Designing-Data-Intensive-Applications-Reliable-Maintainable/dp/1449373321)
+- [7] [GitHub Downtime Issue](https://blog.github.com/2012-12-26-downtime-last-saturday/)
