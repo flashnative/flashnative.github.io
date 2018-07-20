@@ -108,6 +108,19 @@ t5: client2 sent its write to storage and overwrite the previous data
 - 由于 `asynchronuse system model` (无法预测的时钟动作,无法预测的网络延迟,无法预测的进程挂起)在分布式场景下不可避免,必须引入 `fencing token`,由最终的服务端根据 `fencing token` 进行裁决.但是 `fencing token` 并不是完美的,可能产生丢失更新.而且对于 `fencing token` 的处理需要在服务端实现 `CAS`,并不是所有系统都支持该操作,这对系统选型有一定的指导意义.
 - 更为关键的问题是,似乎不能依赖一个外部的锁来做某个资源的互斥访问?
 
+上述第二个结论令人感到不安,这个时候大家很容易想到要看的的一篇 `paper`,没错,就是 `chubby`,我们来看看 `chubby` 是怎么干的.
+
+#### google chubby
+`chubby` 对于每一个锁都会关联一个 `sequencer`,按我理解这就是我们所说的 `fencing token`了,当请求客户端获取到锁之后会将此 `sequencer` 和请求一起发往服务端,服务端需要检查此 `sequencer` 是否依然有效,如果有效则处理.这个机制我认为从功能上看是完全没有问题的,但是性能可能会是问题,因为服务端可能需要频繁查询 `chubby cell` 来确认某个请求的租约是否还有效,论文提及到这可以使用 `lock cache` 来解决,这个我们后面还会提到.
+
+我们注意到 `chubby` 声称自己是一个 `coarse-grained lock`,这意味者获取锁操作这个请求是很少的.
+> instead, we expect coarse-grained use. For example, an
+application might use a lock to elect a primary, which
+would then handle all access to that data for a considerable
+time, perhaps hours or days.
+
+但是并不意味着检查 `sequencer` 这个操作的请求数也不多,因为当某个节点通过 `chubby` 选举出来作为 `primary` 负责处理某个共享数据之后,所有这个节点经手的请求都需要被最终处理请求的节点来校验发起方是否还是合法的 `primary`.`chubby` 在这里的解决方案是使用本地 `cache`,不幸的是它的 `cache` 有效性依然是基于租约实现的.
+
 #### Reference
 - [1] [how to do distributed locking](https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html)
 - [2] [distlock](https://redis.io/topics/distlock)
