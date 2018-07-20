@@ -21,7 +21,7 @@ tags:
 
 > Correctness: Taking a lock prevents concurrent processes from stepping on each others’ toes and messing up the state of your system. If the lock fails and two nodes concurrently work on the same piece of data, the result is a corrupted file, data loss, permanent inconsistency, the wrong dose of a drug administered to a patient, or some other serious problem.
 
-在这篇驳斥 [redlock](https://redis.io/topics/distlock) 的文章中,`Martin` 用 `redis` 的例子来解释了这两种类型的差异.事实上在实际的业务系统里这两种类型也是很常见的用法,比如我正在重构的系统.为此,我需要阐述一下经过简化的我们的存储系统,我们的系统是一个类似 `HBase+HDFS` 的系统,示意图如下:
+在这篇驳斥 [redlock](https://redis.io/topics/distlock)<sup>2</sup> 的文章中,`Martin` 用 `redis` 的例子来解释了这两种类型的差异.事实上在实际的业务系统里这两种类型也是很常见的用法,比如我正在重构的系统.为此,我需要阐述一下经过简化的我们的存储系统,我们的系统是一个类似 `HBase+HDFS` 的系统,示意图如下:
 
 ![layout](https://note.youdao.com/yws/api/personal/file/WEBde5711bfdbe7bc80a3d1370546d6769b?method=download&shareKey=4c8bdfad8a8746ccc067a1632b7ed32f)
 
@@ -50,20 +50,23 @@ tags:
 
 ![timeline](https://note.youdao.com/yws/api/personal/file/WEB3254228db50af1a294a53626ec6dd79b?method=download&shareKey=0240fff2a923526e6a6ce3d90fba533e)
 
-但真正的问题在于,租约机制是一个非常依赖时钟的系统,正如 `Leases: An Efficient Fault-Tolerant Mechanism for Distributed File Cache Consistency` 这篇论文提到的:
+但真正的问题在于,租约机制是一个非常依赖时钟的系统,正如 `Leases: An Efficient Fault-Tolerant Mechanism for Distributed File Cache Consistency`<sup>3</sup> 这篇论文提到的:
 
 > Leases depend on well-behaved clocks. In particular,a server clock that advances too quickly can cause errors because it may allow a write before the term of a lease held by a previous client has expired at that client. Sim- ilarly, if a client clock fails by advancing too slowly, it may continue using a lease which the server regards as having expired.
 
-在分布式系统中如果需要对物理时钟有要求,通常都具有风险(当然,像 `spanner` 那样通过原子钟实现的 `bound drift clock` 也是一种方式),因为这种要求尽管在绝大多数情况下都是满足的,但不能保证一个分布式协议的 `safety` 要求.
+在分布式系统中如果需要对物理时钟有要求,通常都具有风险(当然,像 `spanner` 那样通过原子钟实现的 `bound drift clock` 也是一种方式),因为这种要求尽管在绝大多数情况下都是满足的,但不能保证一个分布式协议的 `safety` 要求.这一点也是在 2016 年的 `redlock` 大讨论中<sup>4/<sup> `martin` 和 `antirez` 产生重大分歧的点.
 
 所以到此为止,我们在这个要求绝对正确的租约场景下,实现的方式是达不到要求的.
 
 到此为止我一直在谈的是租约机制,可能和分布式锁看起来没有直接联系.但是考虑到分布式锁服务按照实现可以有两类:
 - 可以解决死锁问题: 即当锁持有者在释放锁之前 `crash` 的话,这把锁将最终能够释放,以防止后续对其保护的资源访问的饥饿问题.通常实现上会对锁加一个超时时间,在超时时间过后如果锁依然没有被访问(`keepalive`),锁将被强制释放.
-- 不能解决死锁问题: 每把锁都需要通过显式的释放来解决.这种实现的缺点在 `chubby`<sup>2</sup> 这篇论文中总结了几点经典理由,这里不再赘述.
+- 不能解决死锁问题: 每把锁都需要通过显式的释放来解决.这种实现的缺点在 `chubby`<sup>5</sup> 这篇论文中总结了几点经典理由,这里不再赘述.
 
 可以看到,分布式锁依然面临由于解决死锁问题而引入的租约机制,可以这么说,解决了租约问题,就解决了分布式锁的一个大难点.
 
 #### Reference
 - [1] [how to do distributed locking](https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html)
-- [2] [The Chubby lock service for loosely-coupled distributed systems](https://static.googleusercontent.com/media/research.google.com/zh-CN//archive/chubby-osdi06.pdf)
+- [2] [distlock](https://redis.io/topics/distlock)
+- [3] [Leases: An Efficient Fault-Tolerant Mechanism for Distributed File Cache Consistency](https://web.eecs.umich.edu/~mosharaf/Readings/Leases.pdf)
+- [4] [is redlock safe?](http://antirez.com/news/101)
+- [5] [The Chubby lock service for loosely-coupled distributed systems](https://static.googleusercontent.com/media/research.google.com/zh-CN//archive/chubby-osdi06.pdf)
