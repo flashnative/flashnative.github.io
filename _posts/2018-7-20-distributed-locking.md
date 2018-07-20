@@ -33,6 +33,11 @@ tags:
 ### Correctness Case
 `single writer` 的语义非常明确,即对某个文件的写入操作在任意时刻只允许有一个写入者,这是因为在并发写的时候文件的写入结果是不确定的,轻者产生数据不一致,严重的话则是数据损毁(比如某些关键元数据不一致导致数据服务读取),所以我们在 `FileStoreLayer` 实现了 `single writer`,使用的方式依然是租约,具体实现下文还会分析,我们先来看下文件存储这一层的大概架构(当然,也是经过简化了的):
 
+![store](https://note.youdao.com/yws/api/personal/file/WEB0452aee7e3ddf4d0ce2c416b9565e9cb?method=download&shareKey=6cba6cd664a64ac1ed4d94bbe4c955b1)
+
+`RootServer` 在这里是集群的大脑,类似于 `GFS` 架构的 `master`,主要负责的功能有两块:
+- session 管理: 这部分就是实现了所谓的 `single writer`,每个写入者都需要在这里维持一个 `session`  
+- index
 
 #### Reference
 - [1] [how to do distributed locking](https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html)
