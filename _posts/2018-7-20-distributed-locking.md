@@ -36,8 +36,34 @@ tags:
 ![store](https://note.youdao.com/yws/api/personal/file/WEB0452aee7e3ddf4d0ce2c416b9565e9cb?method=download&shareKey=6cba6cd664a64ac1ed4d94bbe4c955b1)
 
 `RootServer` 在这里是集群的大脑,类似于 `GFS` 架构的 `master`,主要负责的功能有两块:
-- session 管理: 这部分就是实现了所谓的 `single writer`,每个写入者都需要在这里维持一个 `session`  
-- index
+- session 管理: 这部分就是实现了所谓的 `single writer`,每个写入者都需要在这里维持一个 `session` 的 `lease`,在这个 `lease` 的有效期内只有它的拥有者可以写入.
+- 索引管理: 管理某个文件所在的 `FileServer` 分布,决定 `I/O` 请求最终处理的位置.
+
+当 `TabletSvr` 要处理一个写请求时,首先获取或者检查写入该文件的租约是否有效,如果有效则根据索引信息得到 `FileServer` 的信息,之后将请求发往指定的 `FileServer` 进行处理.那么问题来了,租约机制能够保证真正的 `single writer` 吗?来看看我们给到的租约实现方案:
+
+#### false lease implementation
+1. 向 `RootServer` 获取租约,并定期对该租约进行续约.
+2. 假设某 `TabletSvr` 节点 `A` 在 `t1` 时刻发起租约续约请求,该请求在 `t2` 时刻返回到节点 `A`.节点 `A` 更新租约的有效期.
+3. 在租约有效期内都允许对该租约保护的文件进行写入.
+
+这里需要注意的一个问题是,`t2` 与 `t1` 之间消耗的时间是不可预设的,我们来看三个时间点上,各个对应节点如果服务挂起(`pause/hang`) 导致的问题,假定客户端的租约长度为 `σ`,处于保守考虑那么剩余租约有效期必须短于 `σ - (t2-t1)`, 而不能是 `t1 + σ`,正如下图所示:
+
+![timeline](https://note.youdao.com/yws/api/personal/file/WEB3254228db50af1a294a53626ec6dd79b?method=download&shareKey=0240fff2a923526e6a6ce3d90fba533e)
+
+但真正的问题在于,租约机制是一个非常依赖时钟的系统,正如 `Leases: An Efficient Fault-Tolerant Mechanism for Distributed File Cache Consistency` 这篇论文提到的:
+
+> Leases depend on well-behaved clocks. In particular,a server clock that advances too quickly can cause errors because it may allow a write before the term of a lease held by a previous client has expired at that client. Sim- ilarly, if a client clock fails by advancing too slowly, it may continue using a lease which the server regards as having expired.
+
+在分布式系统中如果需要对物理时钟有要求,通常都具有风险(当然,像 `spanner` 那样通过原子钟实现的 `bound drift clock` 也是一种方式),因为这种要求尽管在绝大多数情况下都是满足的,但不能保证一个分布式协议的 `safety` 要求.
+
+所以到此为止,我们在这个要求绝对正确的租约场景下,实现的方式是达不到要求的.
+
+到此为止我一直在谈的是租约机制,可能和分布式锁看起来没有直接联系.但是考虑到分布式锁服务按照实现可以有两类:
+- 可以解决死锁问题: 即当锁持有者在释放锁之前 `crash` 的话,这把锁将最终能够释放,以防止后续对其保护的资源访问的饥饿问题.通常实现上会对锁加一个超时时间,在超时时间过后如果锁依然没有被访问(`keepalive`),锁将被强制释放.
+- 不能解决死锁问题: 每把锁都需要通过显式的释放来解决.这种实现的缺点在 `chubby`<sup>2</sup> 这篇论文中总结了几点经典理由,这里不再赘述.
+
+可以看到,分布式锁依然面临由于解决死锁问题而引入的租约机制,可以这么说,解决了租约问题,就解决了分布式锁的一个大难点.
 
 #### Reference
 - [1] [how to do distributed locking](https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html)
+- [2] [The Chubby lock service for loosely-coupled distributed systems](https://static.googleusercontent.com/media/research.google.com/zh-CN//archive/chubby-osdi06.pdf)
