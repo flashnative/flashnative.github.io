@@ -89,8 +89,8 @@ service-worker: true
 
 
 
-# Interesting Site
-interesting-sites: [
+# Others
+others: [
     {
          title: "Matin Kleppmann",
          href: "https://martin.kleppmann.com/"
