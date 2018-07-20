@@ -10,7 +10,7 @@ tags:
     - Distributed System
 ---
 
-作为一个分布式工程师,多年来在系统设计中总是尽量避免使用所谓的分布式锁,因为潜意识中大家都认为分布式锁是一个非常容易出错,很难实现正确的东西,就跟很多时候大家会尽量避免使用 `paxos`,不过近些年由于 `raft`/`pacificA` 等协议的铺垫,大家已经越来越能够接受自己去实现一个 `consensus algorithm` 了,但很大程度上,分布式锁还是有点洪水猛兽的意思.
+作为一个分布式系统工程师,多年来在系统设计中总是尽量避免使用所谓的分布式锁,因为潜意识中大家都认为分布式锁是一个非常容易出错,很难实现正确的东西,就跟很多时候大家会尽量避免使用 `paxos`,不过近些年由于 `raft`/`pacificA` 等协议的铺垫,大家已经越来越能够接受自己去实现一个 `consensus algorithm` 了,但很大程度上,分布式锁还是有点洪水猛兽的意思.
 
 不过事实上,在设计分布式系统的时候,要避开分布式锁的概念是几乎不可能的.甚至在很多时候可能我们不会意识到某些地方实际需要的其实是一个分布式锁,在不明所以的情况下,就可能会给出一个自认为安全的能够解决问题的方案,正如我们知道的,一个算法在理论上能正确工作和他在实现中是否正常工作,是两码事,更别提没意识到要使用某种分布式算法的时候,给出的方案是否可靠就更难以想想了.
 
@@ -21,7 +21,7 @@ tags:
 
 > Correctness: Taking a lock prevents concurrent processes from stepping on each others’ toes and messing up the state of your system. If the lock fails and two nodes concurrently work on the same piece of data, the result is a corrupted file, data loss, permanent inconsistency, the wrong dose of a drug administered to a patient, or some other serious problem.
 
-在这篇驳斥 [`redlock`](https://redis.io/topics/distlock) 的文章中,`Martin` 用 `redis` 的例子来解释了这两种类型的差异.事实上在实际的业务系统里这两种类型也是很常见的用法,比如我正在重构的系统.为此,我需要阐述一下经过简化的我们的存储系统,我们的系统是一个类似 `HBase+HDFS` 的系统,示意图如下:
+在这篇驳斥 [redlock](https://redis.io/topics/distlock) 的文章中,`Martin` 用 `redis` 的例子来解释了这两种类型的差异.事实上在实际的业务系统里这两种类型也是很常见的用法,比如我正在重构的系统.为此,我需要阐述一下经过简化的我们的存储系统,我们的系统是一个类似 `HBase+HDFS` 的系统,示意图如下:
 
 ![layout](https://note.youdao.com/yws/api/personal/file/WEBde5711bfdbe7bc80a3d1370546d6769b?method=download&shareKey=4c8bdfad8a8746ccc067a1632b7ed32f)
 
@@ -31,6 +31,7 @@ tags:
 像上面描述的缓存使用场景是很常见的一种服务端技术,相信很多系统都在使用.很幸运(really?),我们这里用到的场景并没有缓存一致性的要求是一种对缓存一致性,那么如果业务需要缓存一致性的时候,依靠租约该如何解决呢?我们在下面进行分析,从上面的描述相信大家也看到了,我们把一个问题的解决方案给推迟了,但还是不可避免,即 `single writer` 功能.
 
 ### Correctness Case
+`single writer` 的语义非常明确,即对某个文件的写入操作在任意时刻只允许有一个写入者,这是因为在并发写的时候文件的写入结果是不确定的,轻者产生数据不一致,严重的话则是数据损毁(比如某些关键元数据不一致导致数据服务读取),所以我们在 `FileStoreLayer` 实现了 `single writer`,使用的方式依然是租约,具体实现下文还会分析,我们先来看下文件存储这一层的大概架构(当然,也是经过简化了的):
 
 
 #### Reference
