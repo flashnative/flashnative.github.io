@@ -106,7 +106,7 @@ t5: client2 sent its write to storage and overwrite the previous data
 
 至此我们得到了一些结论:
 - 由于 `asynchronuse system model` (无法预测的时钟动作,无法预测的网络延迟,无法预测的进程挂起)在分布式场景下不可避免,必须引入 `fencing token`,由最终的服务端根据 `fencing token` 进行裁决.但是 `fencing token` 并不是完美的,可能产生丢失更新.而且对于 `fencing token` 的处理需要在服务端实现 `CAS`,并不是所有系统都支持该操作,这对系统选型有一定的指导意义.
-- 更为关键的问题是,似乎不能依赖一个外部的锁来做某个资源的互斥访问?
+- 更为关键的问题是,似乎不能依赖一个外部的锁来做某个资源的互斥访问?那么所有最终处理被锁保护的资源的服务,似乎否应该自己用一致性协议实现锁服务?
 
 上述第二个结论令人感到不安,这个时候大家很容易想到要看的的一篇 `paper`,没错,就是 `chubby`,我们来看看 `chubby` 是怎么干的.
 
