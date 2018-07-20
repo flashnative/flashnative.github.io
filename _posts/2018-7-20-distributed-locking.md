@@ -54,7 +54,7 @@ tags:
 
 > Leases depend on well-behaved clocks. In particular,a server clock that advances too quickly can cause errors because it may allow a write before the term of a lease held by a previous client has expired at that client. Sim- ilarly, if a client clock fails by advancing too slowly, it may continue using a lease which the server regards as having expired.
 
-在分布式系统中如果需要对物理时钟有要求,通常都具有风险(当然,像 `spanner` 那样通过原子钟实现的 `bound drift clock` 也是一种方式),因为这种要求尽管在绝大多数情况下都是满足的,但不能保证一个分布式协议的 `safety` 要求.这一点也是在 2016 年的 `redlock` 大讨论中<sup>4/<sup> `martin` 和 `antirez` 产生重大分歧的点.
+在分布式系统中如果需要对物理时钟有要求,通常都具有风险(当然,像 `spanner` 那样通过原子钟实现的 `bound drift clock` 也是一种方式),因为这种要求尽管在绝大多数情况下都是满足的,但不能保证一个分布式协议的 `safety` 要求.这一点也是在 2016 年的 `redlock` 大讨论中<sup>4</sup> `martin` 和 `antirez` 产生重大分歧的点.
 
 所以到此为止,我们在这个要求绝对正确的租约场景下,实现的方式是达不到要求的.
 
