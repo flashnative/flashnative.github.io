@@ -64,9 +64,30 @@ tags:
 
 可以看到,分布式锁依然面临由于解决死锁问题而引入的租约机制,可以这么说,解决了租约问题,就解决了分布式锁的一个大难点.
 
+#### fencing token
+我们先借 `Designing Data-Intensive Applications`<sup>6</sup> 中的两张图来详细解释下分布式锁可能产生的双主问题.通常我们使用分布式锁的方式是这样的:
+
+```
+std::string id;
+bool succ = LockService.Acquire(&id);
+if (!succ) return;
+
+//do something...
+try {
+    StorageService.Write("xxx")
+} finally {
+    LockService.Release(id);
+}
+```
+
+这段代码的问题在于,在获取锁成功之后和处理 `Write` 操作之前,进程有可能被挂起,比如做一个长时间的 `GC`,当挂起结束后程序会继续进行 `Write` 操作,而此时有可能这把锁的有效期已经过了,而且已经在另一个客户端上被获取使用,那么就会导致两个客户端都产生了写操作到存储服务上,而其中只有一个是处于被锁保护下进行的,数据就可能发生并发操作导致损坏.这个过程的示意图是这样的:
+
+![unsafe-write](https://note.youdao.com/yws/api/personal/file/WEBc17cdc6c6a7269246de1839e5d007686?method=download&shareKey=ea2523cd6fa61163362d2a178998a0d8)
+
 #### Reference
 - [1] [how to do distributed locking](https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html)
 - [2] [distlock](https://redis.io/topics/distlock)
 - [3] [Leases: An Efficient Fault-Tolerant Mechanism for Distributed File Cache Consistency](https://web.eecs.umich.edu/~mosharaf/Readings/Leases.pdf)
 - [4] [is redlock safe?](http://antirez.com/news/101)
 - [5] [The Chubby lock service for loosely-coupled distributed systems](https://static.googleusercontent.com/media/research.google.com/zh-CN//archive/chubby-osdi06.pdf)
+- [6] [DDIA](https://www.amazon.com/Designing-Data-Intensive-Applications-Reliable-Maintainable/dp/1449373321)
