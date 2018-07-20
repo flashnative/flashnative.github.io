@@ -90,7 +90,7 @@ service-worker: true
 
 
 # Interesting Site
-interesting-site: [
+interesting-sites: [
     {
          title: "Matin Kleppmann",
          href: "https://martin.kleppmann.com/"
