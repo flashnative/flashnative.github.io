@@ -94,5 +94,9 @@ friends: [
     {
          title: "Matin Kleppmann",
          href: "https://martin.kleppmann.com/"
+    },
+    {
+         title: "brave new geek",
+         href: "https://bravenewgeek.com/"
     }
 ]
