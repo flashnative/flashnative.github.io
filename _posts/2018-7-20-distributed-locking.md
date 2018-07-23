@@ -124,6 +124,8 @@ time, perhaps hours or days.
 - 在一个系统的所有层次中,中间系统通过外部锁系统来访问处于其下层的另一个系统(通常是底层存储系统)的某个共享资源,是不可能依靠互斥锁的语义完成互斥操作的,要得到这个效果,必须由底层系统合作,比如支持 `CAS`.那么话说回来了,既然一个底层系统已经支持了原子的 `CAS`,为何还需要外部锁来保护<sup>4</sup>?我觉得锁冲突是一个原因,因为如果全部依赖底层的 `CAS` 的话,在频繁修改冲突的场景下冲突导致的回滚会非常多,但是如果在上层系统做了比如排队操作,那么冲突可以显著降低,而排队所需要的选主操作是分布式锁可以提供的.如果可以,应该考虑在存储服务上实现分布式锁,而不是依靠外部锁.
 - 底层系统的 `fencing` 可以是一个很广义的操作,它的含义在于原子地做到互斥访问.这需要底层系统在设计上进行综合考虑.可以得到的一个例子是 `Azure Storage`<sup>8</sup>,他们底层的存储系统也依赖一个 `single writer` 的语义,细节可以参考他们的论文,但简单来说他们依靠整个系统做成 `append-only` 的方式,在可能出现冲突写的地方通过 `seal` 掉之前写入的数据来杜绝并发写操作.我认为这是一个广义的 `fencing token` 应用.
 
+**补充:注意我们这里的rootserver并没有使用一致性协议,实际上Azure Blob Storage在类似的StreamManager是实现的paxos协议,所以理论上它不依靠appond-only也能保证只有一个writer.但是考虑到我们之前提到的网络迷失的状况,一个已经放弃了写锁的客户端的请求依然有可能延迟到达服务端,所以fencing依然是最终的保护伞.**
+
 #### Reference
 - [1] [how to do distributed locking](https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html)
 - [2] [distlock](https://redis.io/topics/distlock)
