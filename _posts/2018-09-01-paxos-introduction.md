@@ -1,3 +1,15 @@
+---
+layout:     post
+title:      "分布式一致性协议 Paxos 入门浅析"
+subtitle:   ""
+date:       2018-09-1 23:00:00
+author:     "cheney"
+header-img: "img/mountain.jpg"
+catalog: true
+tags:
+    - Distributed System
+---
+
 我相信对于每一个做分布式系统开发的程序员来说,一致性算法都是没有办法绕过去的.从事分布式系统开发也有一段时间了,萦绕我心头的一个遗憾是,总是未能去理解广为人知的 `Paxos` 协议.从另一方面来说,这影响到一个分布式系统从业者的信心,终于我决定尝试理解下 `Paxos` 协议,并且记录下其中的一些理解.
 
 ---
