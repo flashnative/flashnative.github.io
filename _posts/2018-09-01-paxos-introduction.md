@@ -44,6 +44,7 @@ tags:
 
 ![图1](https://note.youdao.com/yws/api/personal/file/WEBac1bc1e33f625c8b61e5910824c9aaa5?method=download&shareKey=2e16bbe35e2dd37443c0b9ff911d6729)
 
+
 ## 角色分类
 
  `Paxos` 将参与整个算法的节点按照在逻辑上执行的不同功能归三类,分别是 `proposer`, `acceptor` 和 `learner`.我们知道, `Paxos` 算法的目的是选出一个值,使这个值被大家所认可(大家先不要纠结这个值是个什么玩意,现在就当他是任意的东西,比如一个字符串,一张图片或者一个网页).而这里的 `proposer` 的主要工作就是提出值选举的方案(`proposal`),每个 `proposal` 包含一个自增的编号 `id` 和它提议的值(`value`). `acceptor` 也比较好理解,就是参与这个提案的审批,决定是否批准(`accept`)提案.比较不怎么直观的是 `leaner`,我看到也有不少不同角度的理解,不过从 `made paxos simple` 原文来看,最正常的一种理解就是当一个值被批准后,将这个值同步到集群中其他节点去,这个被同步的角色就是 `learner`,因为它学习到了最新的值信息.
