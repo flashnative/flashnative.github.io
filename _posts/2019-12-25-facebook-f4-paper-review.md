@@ -7,7 +7,7 @@ author:     "cheney"
 header-img: "img/mountain.jpg"
 catalog: true
 tags:
-    - Distributed System
+    - distributed system
     - facebook
     - f4
     - storage system
@@ -15,13 +15,13 @@ tags:
 
 受到 the morning paper 作者最近的一封邮件影响，觉得定期分享一些读论文的感受应该是很有帮助的，也有助于有兴趣的朋友一起讨论，所以决定尝试着写一写，看看能不能坚持下去。
 
-第一篇论文想讲讲facebook的f4，这是一篇发表在OSDI'14上的论文，迄今也已经过去5年了，所以有很多概念现如今大家已经都非常熟悉了，这篇文章还是有必要读一读，因为facebook从需求出发直到系统落地的方法论很值得学习，当然它的架构演变的过程也很有趣。
+第一篇论文想讲讲facebook的f4，这是一篇发表在 OSDI'14 上的论文，迄今也已经过去5年了，所以有很多概念现如今大家已经都非常熟悉了，这篇文章还是有必要读一读，因为facebook从需求出发直到系统落地的方法论很值得学习，当然它的架构演变的过程也很有趣。
 
 ## 引子
 
-facebook的存储基础设施的演进是非常典型的业务驱动，早期他们使用商用NAS产品来存储数据，很快随着规模的上涨，这一方案带来的经济/人力性价比越来越低，终于facebook决定自己搞一套存储系统来应对日益增长的业务对存储系统的要求，这就是haystack，这个系统的论文发布在OSDI'2010上。
+facebook的存储基础设施的演进是非常典型的业务驱动，早期他们使用商用NAS产品来存储数据，很快随着规模的上涨，这一方案带来的经济/人力性价比越来越低，终于facebook决定自己搞一套存储系统来应对日益增长的业务对存储系统的要求，这就是haystack，这个系统的论文发布在 OSDI'2010。
 
-haystack的设计原理还是比较直观的，之前我负责的一套存储系统也是依据此模型进行构建的，包括淘宝的TFS也是类似的思想。haystack作为一款热数据存储引擎，功能的重点是以低延迟抗住读写请求，并提供较高的系统吞吐。而facebook公司业务决定了他们会有大量的小文件(图片、头像等)，基于本地文件系统实现的存储模型，在遇到大量的文件元数据时面临的寻址开销非常大，一次普通的IO由于inode查询等磁盘开销可能会被放大多倍，导致读取性能低下。在删除带来的磁盘碎片更会加剧对性能的影响，为此，haystack的主要思路是：
+haystack的设计原理还是比较直观的，之前我负责的一套存储系统也是依据此模型进行构建的，包括淘宝的TFS也是类似的思想。haystack作为一款热数据存储引擎，功能的重点是以低延迟抗住读写请求，并提供较高的系统吞吐。而facebook公司业务决定了他们会有大量的小文件(图片、头像等)，基于本地文件系统实现的存储模型，在遇到大量的文件元数据时面临的寻址开销非常大，一次普通的IO由于inode查询等磁盘开销可能会被放大多倍，导致读取性能低下。删除带来的磁盘碎片更会加剧对性能的影响，为此，haystack的主要思路是：
 
 - 通过将大量业务层的小文件(blob)聚合为一个大文件(volume)存放在文件系统中，降低文件系统元数据的量级。而这些volume的量级非常大(~100GB)，可以很好的利用磁盘的追加写特性，并且在回收时降低磁盘碎片
 - 通过将小文件的索引(记录每个小文件在volume中的偏移等信息)全量加载进内存中加速索引查询
@@ -36,16 +36,17 @@ haystack的设计原理还是比较直观的，之前我负责的一套存储系
 
 我觉得facebook包括之前看到的很多国外公司发的paper都有一个很好的习惯，必须用数据做验证。当然这也是有成熟业务的公司的优势，他们有一个可供他们研究的数据集。facebook也一样，既然觉得数据存在温热的区别，那必须验证一下，通过对现有集群的benchmark和数据收集，证据是很明确的，线上大多数业务的数据都具有热度随时间消退的特性:
 
-![image](https://note.youdao.com/yws/api/personal/file/WEBfe0791f444a8cee6f8a8de7fffb13c85?method=download&shareKey=1594df9aec35d0deb042079996d1283b)
+![image](https://d3i71xaburhd42.cloudfront.net/4b1b767ea79f350ee52bf347406e9b1ee1d4c68f/3-Figure3-1.png)
+![image](https://d3i71xaburhd42.cloudfront.net/4b1b767ea79f350ee52bf347406e9b1ee1d4c68f/3-Figure4-1.png)
 
-第二个问题随之而来，既然数据有温热的分界，那么分界在哪里呢？就是说要找到一个时间点，在这个时间点之后，数据会大概率趋于温数据。我没太看懂这里的数据分析逻辑(如果有看到本文的同学欢迎告诉我下，感谢)，但总之facebook的兄弟们找到了这个时间--三个月，三个月后除了头像数据以外，大部分数据都成了非高频访问。
+第二个问题随之而来，既然数据有温热的分界，那么分界在哪里呢？就是说要找到一个时间点，在这个时间点之后，数据会大概率趋于温数据。我没太看懂这里的数据分析逻辑(如果有看到本文的同学欢迎告诉我下，感谢)，但总之facebook的兄弟们找到了这个时间---三个月，三个月后除了头像数据以外，大部分数据都成了非高频访问。
 
 好的，现在有充分的证据支持要做一套新的系统来存放温数据了，那么，这套系统需要满足什么条件呢？至少有两个条件是不能商量，必须满足的：
 
 - 省钱，这套系统必须省钱，为一些长尾的不常访问的数据没必要让他们具有在线访问能力。当然了也不能像低频存储那样以天为单位访问，但可以容忍比在线访问稍慢一些
 - 数据冗余不能降低，我们知道之前的haystack的副本冗余是3.6并且具备跨地域容灾能力(有一个从副本位于独立地域，每块磁盘做RAID6提供1.2的冗余度)
 
-第一点还是比较容易满足的，EC,EC还是EC。这似乎已经成了标配，不知道在2019年的今天，facebook这套系统有没有做新的改进，但在这篇论文中他们采用了经典的 Reed-Solomon coding(10,4)，这意味着副本冗余度为1.4。当时f4出来的时候，微软的WAS(windows azure storage)采用的LRC方式也已经出现了，不过facebook还是用了比较经典的方式，毕竟，稳才是第一位的。这个1.4的冗余度是在单地域实现的，如果要实现跨地域数据容灾，就需要做一个对等拷贝，那整体就是2.8的冗余度，对比之前的3.6收效不是非常大。不过f4引入了XOR coding的方式将整体冗余度降至2.1。
+第一点还是比较容易满足的，EC,EC还是EC。这似乎已经成了标配，不知道在2019年的今天，facebook这套系统有没有做新的改进，但在这篇论文中他们采用了经典的 Reed-Solomon coding(10,4)，这意味着副本冗余度为1.4。当时f4出来的时候，微软的WAS(windows azure storage)采用的LRC方式也已经出现了，不过facebook还是用了比较经典的方式，毕竟，稳才是第一位的。这个1.4的冗余度是在单地域实现的，如果要实现跨地域数据容灾，就需要做一个对等拷贝，那整体就是2.8的冗余度，对比之前的3.6收效不是非常大。不过f4引入了XOR coding的方式将整体冗余度降至2.1。EC的问题是读取可能会降级，性能会受到影响，但是由于我们对温数据的性能定义，是可以接受的。
 
 ## 统一的blob存储
 
@@ -71,9 +72,9 @@ storage node对外暴露两组接口，一组是查询某个blob的索引信息�
 
 > The volume-to-storage-node assignment is maintained by a separate system that is out of the scope of this paper.
 
-但总的来说router tier应该能从请求参数中得到volume id并将请求转给负责该volume id的storage node，该storage node(primary node)具有此volume对应的index文件的内存映像(于启动时加载，我认为该信息是存储在HDFS上的并且index文件被哪个storage node处理是弱依赖关系，可能由某个外部系统协调)。primary node得出该blob的偏移后还需要知道这个偏移对应的block信息，这是有location-map记录的，location-map记录了volume->strip->block(logical)的信息，并且通过HDFS的name node得知该logical block的实际物理存储节点，这些信息通过Index API返回给router tier。
+但总的来说router tier应该能从请求参数中得到volume id并将请求转给负责该volume id的storage node，该storage node(primary node)具有此volume对应的index文件的内存映像(于启动时加载，我认为该信息是存储在HDFS上的并且index文件被哪个storage node处理是弱依赖关系，可能由某个外部系统协调)。primary node得出该blob的偏移后还需要知道这个偏移对应的block信息，这是由location-map记录的(location-map也是由primary 弄的启动加载进内存的)，location-map记录了volume->strip->block(logical)的信息，并且通过HDFS的name node得知该logical block的实际物理存储节点，这些信息通过Index API返回给router tier。
 
-router tie收到回应后会向实际数据所在的storage node调用File API获取实际数据。在遇到一些故障的情况下，router tier可能需要依靠backoff node来进行数据重建才能满足前端要求。值得注意的是，在backoff node重建blob信息时是以blob为单位而不是block为单位的，这可以大大降低故障情况下数据构建的开销。而整个blok的丢失重建则是由rebuilder node负责的。
+router tie收到回应后会向实际数据所在的storage node调用File API获取实际数据。在遇到一些故障的情况下，router tier可能需要依靠backoff node来进行数据重建才能满足前端要求。值得注意的是，在backoff node重建blob信息时是以blob为单位而不是block为单位的，这可以大大降低故障情况下数据构建的开销。而整个block的丢失重建则是由rebuilder node负责的。
 
 ### 跨地域容灾
 
