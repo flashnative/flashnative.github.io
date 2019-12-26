@@ -72,7 +72,7 @@ storage node对外暴露两组接口，一组是查询某个blob的索引信息�
 
 > The volume-to-storage-node assignment is maintained by a separate system that is out of the scope of this paper.
 
-但总的来说router tier应该能从请求参数中得到volume id并将请求转给负责该volume id的storage node，该storage node(primary node)具有此volume对应的index文件的内存映像(于启动时加载，我认为该信息是存储在HDFS上的并且index文件被哪个storage node处理是弱依赖关系，可能由某个外部系统协调)。primary node得出该blob的偏移后还需要知道这个偏移对应的block信息，这是由location-map记录的(location-map也是由primary 弄的启动加载进内存的)，location-map记录了volume->strip->block(logical)的信息，并且通过HDFS的name node得知该logical block的实际物理存储节点，这些信息通过Index API返回给router tier。
+但总的来说router tier应该能从请求参数中得到volume id并将请求转给负责该volume id的storage node，该storage node(primary node)具有此volume对应的index文件的内存映像(于启动时加载，我认为该信息是存储在HDFS上的并且index文件被哪个storage node处理是弱依赖关系，可能由某个外部系统协调)。primary node得出该blob的偏移后还需要知道这个偏移对应的block信息，这是由location-map记录的(location-map也是由primary node启动加载进内存的)，location-map记录了volume->strip->block(logical)的信息，并且通过HDFS的name node得知该logical block的实际物理存储节点，这些信息通过Index API返回给router tier。
 
 router tie收到回应后会向实际数据所在的storage node调用File API获取实际数据。在遇到一些故障的情况下，router tier可能需要依靠backoff node来进行数据重建才能满足前端要求。值得注意的是，在backoff node重建blob信息时是以blob为单位而不是block为单位的，这可以大大降低故障情况下数据构建的开销。而整个block的丢失重建则是由rebuilder node负责的。
 
