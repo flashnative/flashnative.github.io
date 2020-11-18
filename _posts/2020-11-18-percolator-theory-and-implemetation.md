@@ -121,7 +121,7 @@ Commit 操作分为两个阶段，第一个阶段是提交 primary 记录，第�
 
 为了应对这种情况（在RocksDB中可以依靠GetForUpdate[2]来实现），Commit 第一阶段的事务提交前会先检查这个lock是否存在，只有存在时才可以继续提交，由于这个保证是由 BigTable 单行事务提供的，只要第一阶段顺利提交完成，就说明这个 lock 之前还没被人清除，是安全的。确认primary记录安全之后，就可以更新write列了，其value就是对应修改的data列，并清除掉对应行的lock。
 
-**  注：Percolator代码中的Erase使用的是commit_ts，按我个人理解应该是start_ts，不知道是否是作者的typo，还请读者一起讨论。 **
+**注：Percolator代码中的Erase使用的是commit_ts，按我个人理解应该是start_ts，不知道是否是作者的typo，还请读者一起讨论。**
 
 在primary记录提交完成后整个事务事实上已经可以认为完成了，所有数据已经具有对外可见性，这是通过对读操作的实现来保证的，所以后面不再叙述对secondary记录的Commit操作。
 
@@ -172,7 +172,7 @@ TiKV是较为知名的一个使用Percolator来实现分布式事务的项目，
 
 ## Reference
 
-[1] [Percolator](https://research.google/pubs/pub36726/)
-[2] [RocksDB Transactions](https://github.com/facebook/rocksdb/wiki/Transactions)
-[3] [Why we built CockroachDB on top of RocksDB](https://www.cockroachlabs.com/blog/cockroachdb-on-rocksd/)
-[4] [TiKV 源码解析系列文章（十二）分布式事务](https://zhuanlan.zhihu.com/p/77846678)
+- [1] [Percolator](https://research.google/pubs/pub36726/)
+- [2] [RocksDB Transactions](https://github.com/facebook/rocksdb/wiki/Transactions)
+- [3] [Why we built CockroachDB on top of RocksDB](https://www.cockroachlabs.com/blog/cockroachdb-on-rocksd/)
+- [4] [TiKV 源码解析系列文章（十二）分布式事务](https://zhuanlan.zhihu.com/p/77846678)
