@@ -166,6 +166,16 @@ TiKV是较为知名的一个使用Percolator来实现分布式事务的项目，
 
 比如在Commit主记录阶段，从snapshot中看到的lock还存在，此时执行一个写事务修改write列，并不能保证这个lock在外部没有被清理，看得我百思不得其解，后来发现原来 TiKV 在进入到事务之前，还在其 Scheduler 中为每一个行提供了一个latch来防并发，这个latch限制了对于一个行的修改同时只有一个事务可以进行，这样就可以保证我们的要求了。
 
+但是为什么TiKV要这么做呢？详细研究了下其实是有原因的，因为RocksDB基于时间戳的用户多版本功能还没有到stable阶段，目前还处于实验阶段，可能是因为这个原因TiKV并未使用这个功能。我们回想下，Percolator对一个Key进行修改时，由于始终是在单行内进行，事务是有保证的，而TiKV使用的方式则不然，他们将时间戳编码在Key中，详细细节可以参考这篇文章[5]，所以TiKV为了模拟Percolator中的多个column实际上是分布在多行上的：
+
+```
+CF_DEFAULT: (key, start_ts) -> value
+CF_LOCK: key -> lock_info
+CF_WRITE: (key, commit_ts) -> write_info
+```
+
+所以单靠RocksDB提供的单行事务是不行了的，所以只能结合latch来保证对某个key的多行数据修改全局只能有一个修改者。
+
 ## Percolator模型的其他应用
 
 由于 Percolator 实现了一个快照隔离级别的事务，我们可以利用这个功能做一些特性。比如在一个分布式文件系统中做快照，这个文件系统可以在对索引实现中使用Percolator模型保证索引在多节点上修改的一致性。通知在应用层提交一个快照请求时，只需要从 TSO 获取一个时间戳来表示快照时间点，这个时间点前后都可以保证整个文件系统索引的内部一致性。
@@ -176,3 +186,4 @@ TiKV是较为知名的一个使用Percolator来实现分布式事务的项目，
 - [2] [RocksDB Transactions](https://github.com/facebook/rocksdb/wiki/Transactions)
 - [3] [Why we built CockroachDB on top of RocksDB](https://www.cockroachlabs.com/blog/cockroachdb-on-rocksd/)
 - [4] [TiKV 源码解析系列文章（十二）分布式事务](https://zhuanlan.zhihu.com/p/77846678)
+- [5] [TiKV distributed transaction](https://tikv.org/deep-dive/distributed-transaction/percolator/)
