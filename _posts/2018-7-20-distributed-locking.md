@@ -7,7 +7,7 @@ author:     "cheney"
 header-img: "img/mountain.jpg"
 catalog: true
 tags:
-    - Distributed System
+    - distributed system
 ---
 
 作为一个分布式系统工程师,在系统设计中总是避免不了要碰到分布式锁的问题,但通常情况下大家都尽量选择避开或者依赖外部服务,因为潜意识中大家都认为分布式锁是一个非常容易出错,很难实现正确的东西,就跟很多时候大家会尽量避免使用 `paxos`,不过近些年由于 `raft`/`pacificA` 等协议的铺垫,大家已经越来越能够接受自己去实现一个 `consensus algorithm` 了,但很大程度上,分布式锁还是有点洪水猛兽的意思.
