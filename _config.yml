@@ -5,7 +5,7 @@ header-img: img/distributed.jpg
 email: None
 description: "I hear and I forget,I see and I remember,I do and I understand."
 keyword: "Distributed System"
-url: "https://doraemon.github.io"              # your host, for absolute URL
+url: "https://flashnative.github.io"              # your host, for absolute URL
 baseurl: ""                             # for example, '/blog' if your blog hosted on 'host/blog'
 
 # Publish posts or collection documents with a future date.
